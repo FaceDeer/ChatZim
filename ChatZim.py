@@ -8,6 +8,7 @@ from ChatZimFilesDialog import ChatZimFilesDialog
 from OpenAIInterface import queryLLM
 
 import sys
+import traceback
 """
 Handle exceptions by displaying the traceback on sys.stderr.
 
@@ -31,16 +32,15 @@ def excepthook(exc_type, exc_value, exc_tb):
 
 sys.excepthook = excepthook
 
-def get_context(prefs, notebook_root):
+def get_context(prefs):
     context_list = []
-    if notebook_root in prefs["notebook"]:
-        for page in prefs["notebook"][notebook_root].items():
-            if page[1]["selected"]:
-                file_path = os.path.join(notebook_root, page[1]["relative_path"])
-                with open(file_path, 'r', encoding="utf-8") as file:
-                    lines = file.readlines()
-                    lines = lines[3:]
-                    context_list.append(''.join(lines))
+    for page in prefs["notebook"].items():
+        if page[1]["selected"]:
+            file_path = os.path.join(prefs["selected_notebook"], page[1]["relative_path"])
+            with open(file_path, 'r', encoding="utf-8") as file:
+                lines = file.readlines()
+                lines = lines[3:]
+                context_list.append(''.join(lines))
     return context_list
 
 
@@ -174,14 +174,12 @@ class ChatWindow(QMainWindow):
     def update_documents(self):
         enabled = 0
         total = 0
-        if self.prefs["selected_notebook"] and self.prefs["selected_notebook"] in self.prefs["notebook"]:
-            notebook = self.prefs["notebook"][self.prefs["selected_notebook"]]
-            for pages in notebook.items():
-                if pages[1]["selected"]:
-                    enabled = enabled + 1
-                total = total + 1
+        for pages in self.prefs["notebook"].items():
+            if pages[1]["selected"]:
+                enabled = enabled + 1
+            total = total + 1
         self.header_label.setText(f'Zim wiki: {self.prefs["selected_name"]} ({enabled}/{total} pages selected)')
-        context = get_context(self.prefs, self.prefs["selected_notebook"])
+        context = get_context(self.prefs)
 
         self.system_message["content"] = (
             "You are a helpful assistant."

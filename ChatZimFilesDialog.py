@@ -84,9 +84,9 @@ class ChatZimFilesDialog(QDialog):
         self.parent.prefs["selected_notebook"] = root_path
         self.parent.prefs["selected_name"] = name
         
-        old_prefs = self.parent.prefs["notebook"].get(root_path, {})
+        old_prefs = self.parent.prefs["notebook"]
         new_prefs = {}
-        self.parent.prefs["notebook"][root_path] = new_prefs
+        self.parent.prefs["notebook"] = new_prefs
         
         for root, dirs, files in os.walk(root_path):
             for file in files:
@@ -115,10 +115,10 @@ class ChatZimFilesDialog(QDialog):
                     checkbox.stateChanged.connect(self.file_toggled)
                     self.file_checkboxes_layout.addWidget(checkbox)
 
-            self.parent.prefs["notebook"][root_path] = new_prefs
+            self.parent.prefs["notebook"] = new_prefs
 
     def file_toggled(self):
         checkbox = self.sender()
         creation_date = checkbox.property("creation_date")
         new_state = checkbox.isChecked()
-        self.parent.prefs["notebook"][self.parent.prefs["selected_notebook"]][creation_date]["selected"] = new_state
+        self.parent.prefs["notebook"][creation_date]["selected"] = new_state
