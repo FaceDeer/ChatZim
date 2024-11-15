@@ -42,6 +42,13 @@ def get_context(prefs):
                 context_list.append(''.join(lines))
     return context_list
 
+#Very quick and dirty.
+def word_count(context):
+    count = 0
+    for page in context:
+        count = count + len(page.split())
+    return count
+
 
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
 class Worker(QObject):
@@ -142,7 +149,7 @@ class ChatWindow(QMainWindow):
 
     def on_llm_response(self, response):
         self.messages.append(response)
-        self.add_message("LLM", response['content'], "#0000ff")
+        self.add_message("Assistant", response['content'], "#0000ff")
         self.text_input.setDisabled(False)  # Re-enable the input field
         self.text_input.setText("")
         self.thread.quit()
@@ -157,10 +164,6 @@ class ChatWindow(QMainWindow):
         self.thread.wait()
         self.thread = None
 
-    def get_llm_response(self, message):
-        # Placeholder for the function that interacts with the LLM
-        return "This is a response from the LLM."
-
     def open_docsets_dialog(self):
         self.docsets_dialog = ChatZimFilesDialog(self)
         self.docsets_dialog.finished.connect(self.update_documents)
@@ -173,8 +176,10 @@ class ChatWindow(QMainWindow):
             if pages[1]["selected"]:
                 enabled = enabled + 1
             total = total + 1
-        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected)')
         context = get_context(self.prefs)
+        self.word_count = word_count(context)
+
+        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected, {self.word_count} words in context)')
 
         self.system_message["content"] = (
             "You are a helpful assistant."
