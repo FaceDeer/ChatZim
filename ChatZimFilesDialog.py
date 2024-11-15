@@ -44,11 +44,10 @@ class ChatZimFilesDialog(QDialog):
         main_layout = QVBoxLayout()
 
         top_layout = QHBoxLayout()
-        self.root_path_input = QLineEdit()
-        top_layout.addWidget(QLabel("Root Path:"))
-        top_layout.addWidget(self.root_path_input)
+        self.root_path = QLabel("Load a Zim notebook")
+        top_layout.addWidget(self.root_path)
         load_files_button = QPushButton("Load Notebook")
-        load_files_button.clicked.connect(self.load_files)
+        load_files_button.clicked.connect(self.load_notebook)
         top_layout.addWidget(load_files_button)
         main_layout.addLayout(top_layout)
 
@@ -79,15 +78,15 @@ class ChatZimFilesDialog(QDialog):
         
         selected_notebook = parent.prefs.get("root_path")
         if selected_notebook:
-            self.root_path_input.setText(selected_notebook)
+            self.root_path.setText(f"Notebook Path: {selected_notebook}")
             self.load_files()
         else:
-            self.root_path_input.setPlaceholderText("Enter root path")
+            self.root_path.setText("Load a Zim notebook")
 
         self.setLayout(main_layout)
 
     def load_files(self):
-        root_path = self.root_path_input.text()
+        root_path = self.parent.prefs["root_path"]
         if not os.path.isdir(root_path):
             return
         name = extract_name_from_ini(root_path)
@@ -138,16 +137,25 @@ class ChatZimFilesDialog(QDialog):
         new_state = checkbox.isChecked()
         self.parent.prefs["pages"][creation_date]["selected"] = new_state
 
+    def load_notebook(self):
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load Notebook", "", "ZIM Files (*.zim);;All Files (*)")
+        if fileName:
+            root = os.path.split(fileName)[0]
+            self.root_path.setText(f"Notebook Path: {root}")
+            self.parent.prefs["root_path"] = root
+            self.load_files()
+            
+
     def load_settings(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, "Load Notebook Settings", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
         if fileName:
             with open(fileName, 'r') as file:
                 self.parent.prefs = json.load(file)
-                self.root_path_input.setText(self.parent.prefs["root_path"])
+                self.root_path.setText(f"Notebook Path: {self.parent.prefs['root_path']}")
                 self.load_files()
 
     def save_settings(self):
-        fileName, _ = QFileDialog.getSaveFileName(self, "Save Notebook Settings", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
         if fileName:
             with open(fileName, 'w') as file:
                 json.dump(self.parent.prefs, file, indent=4, sort_keys=True)
