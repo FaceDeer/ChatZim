@@ -5,7 +5,6 @@ from PyQt6.QtGui import QAction
 import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
-
 from OpenAIInterface import queryLLM
 
 import sys
@@ -43,6 +42,27 @@ def get_context(prefs, notebook_root):
                     lines = lines[3:]
                     context_list.append(''.join(lines))
     return context_list
+
+
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
+class Worker(QObject):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, messages):
+        super().__init__()
+        self.messages = messages
+
+    def run(self):
+        try:
+            llm_response = queryLLM(self.messages)
+            if llm_response:
+                self.finished.emit(llm_response)
+            else:
+                self.error.emit("Error getting LLM response")
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 class ChatWindow(QMainWindow):
     def __init__(self):
@@ -110,15 +130,37 @@ class ChatWindow(QMainWindow):
         self.text_input.clear()
         self.add_message("User", user_text, "#ff0000")
 
-        user_message = {"role":"user", "content":user_text}
+        user_message = {"role": "user", "content": user_text}
         self.messages.append(user_message)
 
-        llm_response = queryLLM(self.messages)
-        if llm_response:
-            self.messages.append(llm_response)
-            self.add_message("LLM", llm_response['content'], "#0000ff")
-        else:
-            self.chat_display.append("\nError getting LLM response")
+        self.text_input.setDisabled(True)  # Disable the input field
+        self.text_input.setText("(Working...)")
+
+        self.thread = QThread()
+        self.worker = Worker(self.messages)
+        self.worker.moveToThread(self.thread)
+        
+        self.worker.finished.connect(self.on_llm_response)
+        self.worker.error.connect(self.on_llm_error)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+    def on_llm_response(self, response):
+        self.messages.append(response)
+        self.add_message("LLM", response['content'], "#0000ff")
+        self.text_input.setDisabled(False)  # Re-enable the input field
+        self.text_input.setText("")
+        self.thread.quit()
+        self.thread.wait()
+        self.thread = None
+
+    def on_llm_error(self, error_message):
+        self.chat_display.append(f"\n{error_message}")
+        self.text_input.setDisabled(False)  # Re-enable the input field
+        self.text_input.setText("")
+        self.thread.quit()
+        self.thread.wait()
+        self.thread = None
 
     def get_llm_response(self, message):
         # Placeholder for the function that interacts with the LLM
