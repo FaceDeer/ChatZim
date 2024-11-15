@@ -34,9 +34,9 @@ sys.excepthook = excepthook
 
 def get_context(prefs):
     context_list = []
-    for page in prefs["notebook"].items():
+    for page in prefs["pages"].items():
         if page[1]["selected"]:
-            file_path = os.path.join(prefs["selected_notebook"], page[1]["relative_path"])
+            file_path = os.path.join(prefs["root_path"], page[1]["relative_path"])
             with open(file_path, 'r', encoding="utf-8") as file:
                 lines = file.readlines()
                 lines = lines[3:]
@@ -75,7 +75,7 @@ class ChatWindow(QMainWindow):
             with open("ChatZim.json", 'r') as f:
                 self.prefs = json.load(f)
         except:
-            self.prefs = {"notebook":{}, "selected_notebook":None, "selected_name":None}
+            self.prefs = {"pages":{}, "root_path":None, "name":None}
 
         self.system_message = {
             "role": "system",
@@ -174,11 +174,11 @@ class ChatWindow(QMainWindow):
     def update_documents(self):
         enabled = 0
         total = 0
-        for pages in self.prefs["notebook"].items():
+        for pages in self.prefs["pages"].items():
             if pages[1]["selected"]:
                 enabled = enabled + 1
             total = total + 1
-        self.header_label.setText(f'Zim wiki: {self.prefs["selected_name"]} ({enabled}/{total} pages selected)')
+        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected)')
         context = get_context(self.prefs)
 
         self.system_message["content"] = (
