@@ -1,13 +1,24 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog
 from PyQt6.QtGui import QAction
+import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
 from OpenAIInterface import queryLLM
 
 import sys
 import traceback
+
+base_prompt = ("You are a helpful assistant."
+            " You will be answering questions regarding"
+            " the following source material:\n\n")
+
+
+role_info = {"user":{"color":"#ff0000", "name":"User"},
+             "assistant":{"color":"#0000ff", "name":"Assistant"}
+             }
+
 """
 Handle exceptions by displaying the traceback on sys.stderr.
 
@@ -97,6 +108,18 @@ class ChatWindow(QMainWindow):
         docsets_action.triggered.connect(self.open_docsets_dialog)
         toolbar.addAction(docsets_action)
 
+        save_conversation_action = QAction("Save Conversation", self)
+        save_conversation_action.triggered.connect(self.save_conversation)
+        toolbar.addAction(save_conversation_action)
+        
+        load_conversation_action = QAction("Load Conversation", self)
+        load_conversation_action.triggered.connect(self.load_conversation)
+        toolbar.addAction(load_conversation_action)
+
+        new_conversation_action = QAction("New Conversation", self)
+        new_conversation_action.triggered.connect(self.new_conversation)
+        toolbar.addAction(new_conversation_action)
+
         self.header_label = QLabel()
         layout.addWidget(self.header_label)
 
@@ -122,16 +145,17 @@ class ChatWindow(QMainWindow):
 #            json.dump(self.prefs, writefile, indent=4, sort_keys=True)
 #        event.accept()
 
-    def add_message(self, role, text, colour):
-        text = text.replace("\n", "<br>")
-        formatted_message = f'<b><span style="color:{colour};">{role}:</span></b> {text}<br>'
+    def add_message(self, message):
+        self.messages.append(message)
+        current_role = role_info[message["role"]]
+        content = message["content"].replace("\n", "<br>")
+        formatted_message = f'<b><span style="color:{current_role["color"]};">{current_role["name"]}:</span></b> {content}<br>'
         self.chat_display.append(formatted_message)
 
     def handle_return_pressed(self):
         user_text = self.text_input.text()
         self.text_input.clear()
-        self.add_message("User", user_text, "#ff0000")
-
+        
         user_message = {"role": "user", "content": user_text}
         self.messages.append(user_message)
 
@@ -148,8 +172,7 @@ class ChatWindow(QMainWindow):
         self.thread.start()
 
     def on_llm_response(self, response):
-        self.messages.append(response)
-        self.add_message("Assistant", response['content'], "#0000ff")
+        self.add_message(response)
         self.text_input.setDisabled(False)  # Re-enable the input field
         self.text_input.setText("")
         self.thread.quit()
@@ -177,14 +200,31 @@ class ChatWindow(QMainWindow):
                 enabled = enabled + 1
             total = total + 1
         context = get_context(self.prefs)
-        self.word_count = word_count(context)
+        words = word_count(context)
+        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected, {words} words in context)')
+        self.system_message["content"] = base_prompt + "\n\n".join(context)
 
-        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected, {self.word_count} words in context)')
+    def save_conversation(self):
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save Conversation", "", "JSON Files (*.json);;All Files (*)")
+        if fileName:
+            with open(fileName, 'w') as file:
+                #omit the system message at the beginning.
+                json.dump(self.messages[1:], file, indent=4, sort_keys=True)
 
-        self.system_message["content"] = (
-            "You are a helpful assistant."
-            " You will be answering questions regarding"
-            " the following source material:\n") + "\n\n".join(context)
+    def load_conversation(self):
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load Conversation", "", "JSON Files (*.json);;All Files (*)")
+        if fileName:
+            with open(fileName, 'r') as file:
+                self.chat_display.clear()
+                messages = json.load(file)
+                self.messages = [self.system_message]
+                for message in messages:
+                    self.add_message(message)
+
+    def new_conversation(self):
+        self.chat_display.clear()
+        self.messages = [self.system_message]
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
