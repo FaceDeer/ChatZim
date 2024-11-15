@@ -1,5 +1,6 @@
 import os
-from PyQt6.QtWidgets import QLineEdit, QVBoxLayout, QWidget, QPushButton, QDialog, QCheckBox, QVBoxLayout, QScrollArea, QLabel
+from PyQt6.QtWidgets import QLineEdit, QVBoxLayout, QWidget, QPushButton, QDialog, QCheckBox, QVBoxLayout, QScrollArea, QLabel, QHBoxLayout, QFileDialog
+import json
 
 import configparser
 def extract_name_from_ini(root_path):
@@ -42,13 +43,14 @@ class ChatZimFilesDialog(QDialog):
 
         main_layout = QVBoxLayout()
 
+        top_layout = QHBoxLayout()
         self.root_path_input = QLineEdit()
-        main_layout.addWidget(QLabel("Root Path:"))
-        main_layout.addWidget(self.root_path_input)
-        load_files_button = QPushButton("Load Files")
+        top_layout.addWidget(QLabel("Root Path:"))
+        top_layout.addWidget(self.root_path_input)
+        load_files_button = QPushButton("Load Notebook")
         load_files_button.clicked.connect(self.load_files)
-        main_layout.addWidget(load_files_button)
-
+        top_layout.addWidget(load_files_button)
+        main_layout.addLayout(top_layout)
 
         # Checkbox area
         scroll_area = QScrollArea()
@@ -58,9 +60,22 @@ class ChatZimFilesDialog(QDialog):
         scroll_area.setWidget(container_widget)
         self.file_checkboxes_layout = QVBoxLayout(container_widget)
 
+
+        bottom_layout = QHBoxLayout()
+
+        load_button = QPushButton("Load Settings")
+        load_button.clicked.connect(self.load_settings)
+        bottom_layout.addWidget(load_button)
+
+        save_button = QPushButton("Save Settings")
+        save_button.clicked.connect(self.save_settings)
+        bottom_layout.addWidget(save_button)
+
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.close)
-        main_layout.addWidget(close_button)
+        bottom_layout.addWidget(close_button)
+
+        main_layout.addLayout(bottom_layout)
         
         selected_notebook = parent.prefs.get("root_path")
         if selected_notebook:
@@ -122,3 +137,17 @@ class ChatZimFilesDialog(QDialog):
         creation_date = checkbox.property("creation_date")
         new_state = checkbox.isChecked()
         self.parent.prefs["pages"][creation_date]["selected"] = new_state
+
+    def load_settings(self):
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load Notebook Settings", "", "JSON Files (*.json);;All Files (*)")
+        if fileName:
+            with open(fileName, 'r') as file:
+                self.parent.prefs = json.load(file)
+                self.root_path_input.setText(self.parent.prefs["root_path"])
+                self.load_files()
+
+    def save_settings(self):
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save Notebook Settings", "", "JSON Files (*.json);;All Files (*)")
+        if fileName:
+            with open(fileName, 'w') as file:
+                json.dump(self.parent.prefs, file, indent=4, sort_keys=True)

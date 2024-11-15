@@ -2,7 +2,6 @@ import sys
 import os
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea
 from PyQt6.QtGui import QAction
-import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
 from OpenAIInterface import queryLLM
@@ -71,11 +70,7 @@ class ChatWindow(QMainWindow):
         self.setWindowTitle("Chat with Zim")
         self.resize(800, 600)
 
-        try:
-            with open("ChatZim.json", 'r') as f:
-                self.prefs = json.load(f)
-        except:
-            self.prefs = {"pages":{}, "root_path":None, "name":None}
+        self.prefs = {"pages":{}, "root_path":None, "name":None}
 
         self.system_message = {
             "role": "system",
@@ -115,10 +110,10 @@ class ChatWindow(QMainWindow):
 
         self.update_documents()
 
-    def closeEvent(self, event):
-        with open("ChatZim.json", "w") as writefile:
-            json.dump(self.prefs, writefile, indent=4, sort_keys=True)
-        event.accept()
+#    def closeEvent(self, event):
+#        with open("ChatZim.json", "w") as writefile:
+#            json.dump(self.prefs, writefile, indent=4, sort_keys=True)
+#        event.accept()
 
     def add_message(self, role, text, colour):
         text = text.replace("\n", "<br>")
