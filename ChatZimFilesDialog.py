@@ -129,8 +129,6 @@ class ChatZimFilesDialog(QDialog):
                     checkbox.stateChanged.connect(self.file_toggled)
                     self.file_checkboxes_layout.addWidget(checkbox)
 
-            self.parent.prefs["pages"] = new_prefs
-
     def file_toggled(self):
         checkbox = self.sender()
         creation_date = checkbox.property("creation_date")
