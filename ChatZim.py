@@ -120,6 +120,10 @@ class ChatWindow(QMainWindow):
         new_conversation_action.triggered.connect(self.new_conversation)
         toolbar.addAction(new_conversation_action)
 
+        back_conversation_action = QAction("Retry", self)
+        back_conversation_action.triggered.connect(self.roll_back)
+        toolbar.addAction(back_conversation_action)
+        
         self.header_label = QLabel()
         layout.addWidget(self.header_label)
 
@@ -157,7 +161,7 @@ class ChatWindow(QMainWindow):
         self.text_input.clear()
         
         user_message = {"role": "user", "content": user_text}
-        self.messages.append(user_message)
+        self.add_message(user_message)
 
         self.text_input.setDisabled(True)  # Disable the input field
         self.text_input.setText("(Working...)")
@@ -203,6 +207,7 @@ class ChatWindow(QMainWindow):
         words = word_count(context)
         self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected, {words} words in context)')
         self.system_message["content"] = base_prompt + "\n\n".join(context)
+        self.messages[0] = self.system_message
 
     def save_conversation(self):
         fileName, _ = QFileDialog.getSaveFileName(self, "Save Conversation", "", "JSON Files (*.json);;All Files (*)")
@@ -225,6 +230,14 @@ class ChatWindow(QMainWindow):
         self.chat_display.clear()
         self.messages = [self.system_message]
 
+    def roll_back(self):
+        if len(self.messages) > 1:
+            self.messages.pop() #delete last response
+            user_message = self.messages.pop()
+            self.text_input.setText(user_message["content"])
+            self.chat_display.clear()
+            for message in self.messages[1:]:
+                self.add_message(message)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
