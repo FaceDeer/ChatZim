@@ -41,11 +41,16 @@ def excepthook(exc_type, exc_value, exc_tb):
 sys.excepthook = excepthook
 
 def get_system_message(context_settings, config):
-    context_list = []
+    file_path_list = []
     for page in context_settings["pages"].items():
         if page[1]["selected"]:
             file_path = os.path.join(context_settings["root_path"], page[1]["relative_path"])
-            with open(file_path, 'r', encoding="utf-8") as file:
+            file_path_list.append(file_path)
+
+    file_path_list.sort()
+    context_list = []
+    for file_path in file_path_list:           
+        with open(file_path, 'r', encoding="utf-8") as file:
                 lines = file.readlines()
                 lines = lines[3:]
                 context_list.append(''.join(lines))
