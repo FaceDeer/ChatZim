@@ -145,7 +145,7 @@ class ChatZimFilesDialog(QDialog):
             
 
     def load_settings(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, "Load ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load ChatZim Settings", "", "PAGES Files (*.pages);;All Files (*)")
         if fileName:
             with open(fileName, 'r') as file:
                 self.parent.context_settings = json.load(file)
@@ -153,7 +153,7 @@ class ChatZimFilesDialog(QDialog):
                 self.load_files()
 
     def save_settings(self):
-        fileName, _ = QFileDialog.getSaveFileName(self, "Save ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save ChatZim Settings", "", "PAGES Files (*.pages);;All Files (*)")
         if fileName:
             with open(fileName, 'w') as file:
                 json.dump(self.parent.context_settings, file, indent=4, sort_keys=True)

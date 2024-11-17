@@ -15,6 +15,8 @@ role_info = {"user":{"color":"#ff0000", "name":"User"},
              "assistant":{"color":"#0000ff", "name":"Assistant"}
              }
 
+config_filename = "ChatZim.conf"
+
 """
 Handle exceptions by displaying the traceback on sys.stderr.
 
@@ -90,7 +92,7 @@ class ChatWindow(QMainWindow):
         self.context_settings = {"pages":{}, "root_path":None, "name":None}
 
         try:
-            with open("ChatZim.json") as file:
+            with open(config_filename) as file:
                 self.config = json.load(file)
         except IOError as error: 
             self.config = {
@@ -215,24 +217,24 @@ class ChatWindow(QMainWindow):
             total = total + 1
         self.messages[0] = get_system_message(self.context_settings, self.config)
         words = word_count(self.messages[0]["content"])
-        self.header_label.setText(f'{self.context_settings["name"]} ({enabled}/{total} pages selected, {words} words in context)')
+        self.header_label.setText(f'{self.context_settings["name"]}: {enabled}/{total} pages selected, {words} words in context')
 
     def open_config_dialog(self):
         self.config_dialog = ChatZimConfigDialog(self)
         if self.config_dialog.exec() == QDialog.DialogCode.Accepted:
             self.update_documents()
-            with open("ChatZim.json", "w") as writefile:
+            with open(config_filename, "w") as writefile:
                 json.dump(self.config, writefile, indent=4, sort_keys=True)
 
     def save_conversation(self):
-        fileName, _ = QFileDialog.getSaveFileName(self, "Save Conversation", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save Conversation", "", "CONV Files (*.conv);;All Files (*)")
         if fileName:
             with open(fileName, 'w') as file:
                 #omit the system message at the beginning.
                 json.dump(self.messages[1:], file, indent=4, sort_keys=True)
 
     def load_conversation(self):
-        fileName, _ = QFileDialog.getOpenFileName(self, "Load Conversation", "", "JSON Files (*.json);;All Files (*)")
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load Conversation", "", "CONV Files (*.conv);;All Files (*)")
         if fileName:
             with open(fileName, 'r') as file:
                 self.chat_display.clear()
