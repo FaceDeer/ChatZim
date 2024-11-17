@@ -6,8 +6,8 @@ import requests
 
 def queryLLM(messages, config):
     max_length = config.get("max_length", 1024)
-    generateUrl = config.get("API_url", "http://10.0.0.149:5001/v1/chat/completions")
-    api_key = config.get("API_key")
+    generateUrl = config.get("api_url", "http://localhost:5001/v1/chat/completions")
+    api_key = config.get("api_key")
     org_id = config.get("org_id")
     project_id = config.get("project_id")
     model = config.get("model")
