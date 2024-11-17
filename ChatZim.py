@@ -1,19 +1,15 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog, QDialog
 from PyQt6.QtGui import QAction
 import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
+from ChatZimConfigDialog import ChatZimConfigDialog
 from OpenAIInterface import queryLLM
 
 import sys
 import traceback
-
-base_prompt = ("You are a helpful assistant."
-            " You will be answering questions regarding"
-            " the following source material:\n\n")
-
 
 role_info = {"user":{"color":"#ff0000", "name":"User"},
              "assistant":{"color":"#0000ff", "name":"Assistant"}
@@ -42,23 +38,25 @@ def excepthook(exc_type, exc_value, exc_tb):
 
 sys.excepthook = excepthook
 
-def get_context(prefs):
+def get_system_message(context_settings, config):
     context_list = []
-    for page in prefs["pages"].items():
+    for page in context_settings["pages"].items():
         if page[1]["selected"]:
-            file_path = os.path.join(prefs["root_path"], page[1]["relative_path"])
+            file_path = os.path.join(context_settings["root_path"], page[1]["relative_path"])
             with open(file_path, 'r', encoding="utf-8") as file:
                 lines = file.readlines()
                 lines = lines[3:]
                 context_list.append(''.join(lines))
-    return context_list
+
+    message = {
+        "role": "system",
+        "content": config["system_prompt"] + "\n\n" + "\n\n".join(context_list)
+        }
+    return message
 
 #Very quick and dirty.
 def word_count(context):
-    count = 0
-    for page in context:
-        count = count + len(page.split())
-    return count
+    return len(context.split())
 
 
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
@@ -66,13 +64,14 @@ class Worker(QObject):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, messages):
+    def __init__(self, messages, config):
         super().__init__()
         self.messages = messages
+        self.config = config
 
     def run(self):
         try:
-            llm_response = queryLLM(self.messages)
+            llm_response = queryLLM(self.messages, self.config)
             if llm_response:
                 self.finished.emit(llm_response)
             else:
@@ -88,19 +87,31 @@ class ChatWindow(QMainWindow):
         self.setWindowTitle("Chat with Zim")
         self.resize(800, 600)
 
-        self.prefs = {"pages":{}, "root_path":None, "name":None}
+        self.context_settings = {"pages":{}, "root_path":None, "name":None}
 
-        self.system_message = {
-            "role": "system",
-            "content": "You are a helpful assistant."
-        }
-        self.messages = [self.system_message]
+        try:
+            with open("ChatZim.json") as file:
+                self.config = json.load(file)
+        except IOError as error: 
+            self.config = {
+                "response_limit": 1024,
+                "api_url": "http://localhost:5001/v1/chat/completions",
+                "api_key": "",
+                "organization_id": "",
+                "project_id": "",
+                "model": "",
+                "system_prompt": ("You are a helpful assistant."
+                    " You will be answering questions regarding"
+                    " the following source material:")
+            }
+
+        self.messages = [get_system_message(self.context_settings, self.config)]
 
         # Main layout
         layout = QVBoxLayout()
 
         # Toolbar
-        toolbar = QToolBar("Configuration")
+        toolbar = QToolBar("Commands")
         self.addToolBar(toolbar)
 
         # DocumentSets action
@@ -120,9 +131,13 @@ class ChatWindow(QMainWindow):
         new_conversation_action.triggered.connect(self.new_conversation)
         toolbar.addAction(new_conversation_action)
 
-        back_conversation_action = QAction("Retry", self)
+        back_conversation_action = QAction("Undo Response", self)
         back_conversation_action.triggered.connect(self.roll_back)
         toolbar.addAction(back_conversation_action)
+
+        configure_action = QAction("Configure", self)
+        configure_action.triggered.connect(self.open_config_dialog)
+        toolbar.addAction(configure_action)
         
         self.header_label = QLabel()
         layout.addWidget(self.header_label)
@@ -144,11 +159,6 @@ class ChatWindow(QMainWindow):
 
         self.update_documents()
 
-#    def closeEvent(self, event):
-#        with open("ChatZim.json", "w") as writefile:
-#            json.dump(self.prefs, writefile, indent=4, sort_keys=True)
-#        event.accept()
-
     def add_message(self, message):
         self.messages.append(message)
         current_role = role_info[message["role"]]
@@ -167,7 +177,7 @@ class ChatWindow(QMainWindow):
         self.text_input.setText("(Working...)")
 
         self.thread = QThread()
-        self.worker = Worker(self.messages)
+        self.worker = Worker(self.messages, self.config)
         self.worker.moveToThread(self.thread)
         
         self.worker.finished.connect(self.on_llm_response)
@@ -199,15 +209,20 @@ class ChatWindow(QMainWindow):
     def update_documents(self):
         enabled = 0
         total = 0
-        for pages in self.prefs["pages"].items():
+        for pages in self.context_settings["pages"].items():
             if pages[1]["selected"]:
                 enabled = enabled + 1
             total = total + 1
-        context = get_context(self.prefs)
-        words = word_count(context)
-        self.header_label.setText(f'Zim wiki: {self.prefs["name"]} ({enabled}/{total} pages selected, {words} words in context)')
-        self.system_message["content"] = base_prompt + "\n\n".join(context)
-        self.messages[0] = self.system_message
+        self.messages[0] = get_system_message(self.context_settings, self.config)
+        words = word_count(self.messages[0]["content"])
+        self.header_label.setText(f'{self.context_settings["name"]} ({enabled}/{total} pages selected, {words} words in context)')
+
+    def open_config_dialog(self):
+        self.config_dialog = ChatZimConfigDialog(self)
+        if self.config_dialog.exec() == QDialog.DialogCode.Accepted:
+            self.update_documents()
+            with open("ChatZim.json", "w") as writefile:
+                json.dump(self.config, writefile, indent=4, sort_keys=True)
 
     def save_conversation(self):
         fileName, _ = QFileDialog.getSaveFileName(self, "Save Conversation", "", "JSON Files (*.json);;All Files (*)")
@@ -222,13 +237,13 @@ class ChatWindow(QMainWindow):
             with open(fileName, 'r') as file:
                 self.chat_display.clear()
                 messages = json.load(file)
-                self.messages = [self.system_message]
+                self.messages = [get_system_message(self.context_settings, self.config)]
                 for message in messages:
                     self.add_message(message)
 
     def new_conversation(self):
         self.chat_display.clear()
-        self.messages = [self.system_message]
+        self.messages = [get_system_message(self.context_settings, self.config)]
 
     def roll_back(self):
         if len(self.messages) > 1:

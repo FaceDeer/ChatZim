@@ -4,25 +4,29 @@ import requests
 #Documentation: https://platform.openai.com/docs/api-reference/chat/create
 #https://platform.openai.com/docs/api-reference/models
 
-
-# Define the URL
-generateUrl = "http://10.0.0.149:5001/v1/chat/completions"
-
-# Define the headers for the request
-headers = {
-    'Content-Type': 'application/json',
-    #"Authorization: Bearer $OPENAI_API_KEY",
-}
-
-
-def queryLLM(messages, max_length = 1024):
+def queryLLM(messages, config):
+    max_length = config.get("max_length", 1024)
+    generateUrl = config.get("API_url", "http://10.0.0.149:5001/v1/chat/completions")
+    api_key = config.get("API_key")
+    org_id = config.get("org_id")
+    project_id = config.get("project_id")
+    model = config.get("model")
+    headers = {'Content-Type': 'application/json'}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    if org_id:
+        headers["OpenAI-Organization"] = org_id
+    if project_id:
+        headers["OpenAI-Project"] = project_id
+    
     # Send the request and get the response
     try:
         data = {
-            #"model": ,
             "messages": messages,
             "max_completion_tokens": max_length,
         }
+        if model:
+            data["model"] = model
         response = requests.post(generateUrl, headers=headers, data=json.dumps(data))
     except Exception as e:
           print(f"An error occurred: {e}")
@@ -39,18 +43,3 @@ def queryLLM(messages, max_length = 1024):
         print(f"Request failed with status code {response.status_code}")
         return False
 
-def test():
-    result = queryLLM([
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "Hello!"
-      }
-    ])
-
-    print(result)
-
-#test()

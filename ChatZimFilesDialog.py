@@ -62,21 +62,21 @@ class ChatZimFilesDialog(QDialog):
 
         bottom_layout = QHBoxLayout()
 
-        load_button = QPushButton("Load Settings")
+        load_button = QPushButton("Load Page Selection")
         load_button.clicked.connect(self.load_settings)
         bottom_layout.addWidget(load_button)
 
-        save_button = QPushButton("Save Settings")
+        save_button = QPushButton("Save Page Selection")
         save_button.clicked.connect(self.save_settings)
         bottom_layout.addWidget(save_button)
 
-        close_button = QPushButton("Close")
+        close_button = QPushButton("Update Context")
         close_button.clicked.connect(self.close)
         bottom_layout.addWidget(close_button)
 
         main_layout.addLayout(bottom_layout)
         
-        selected_notebook = parent.prefs.get("root_path")
+        selected_notebook = parent.context_settings.get("root_path")
         if selected_notebook:
             self.root_path.setText(f"Notebook Path: {selected_notebook}")
             self.load_files()
@@ -86,7 +86,7 @@ class ChatZimFilesDialog(QDialog):
         self.setLayout(main_layout)
 
     def load_files(self):
-        root_path = self.parent.prefs["root_path"]
+        root_path = self.parent.context_settings["root_path"]
         if not os.path.isdir(root_path):
             return
         name = extract_name_from_ini(root_path)
@@ -95,12 +95,12 @@ class ChatZimFilesDialog(QDialog):
 
         clearLayout(self.file_checkboxes_layout)
 
-        self.parent.prefs["root_path"] = root_path
-        self.parent.prefs["name"] = name
+        self.parent.context_settings["root_path"] = root_path
+        self.parent.context_settings["name"] = name
         
-        old_prefs = self.parent.prefs["pages"]
-        new_prefs = {}
-        self.parent.prefs["pages"] = new_prefs
+        old_context_settings = self.parent.context_settings["pages"]
+        new_context_settings = {}
+        self.parent.context_settings["pages"] = new_context_settings
         
         for root, dirs, files in os.walk(root_path):
             for file in files:
@@ -111,21 +111,21 @@ class ChatZimFilesDialog(QDialog):
                     if creation_date is None:
                         print(relative_path + " had no creation date")
                         continue
-                    if creation_date in new_prefs:
-                        print(relative_path + " has an identical creation date to " + new_prefs[creation_date]["relative_path"])
+                    if creation_date in new_context_settings:
+                        print(relative_path + " has an identical creation date to " + new_context_settings[creation_date]["relative_path"])
                         continue
 
                     #TODO simplify
-                    if creation_date in old_prefs:
-                        new_prefs[creation_date] = {"relative_path":relative_path,
-                                                    "selected": old_prefs[creation_date]["selected"]}
+                    if creation_date in old_context_settings:
+                        new_context_settings[creation_date] = {"relative_path":relative_path,
+                                                    "selected": old_context_settings[creation_date]["selected"]}
                     else:
-                        new_prefs[creation_date] = {"relative_path":relative_path,
+                        new_context_settings[creation_date] = {"relative_path":relative_path,
                                                     "selected": False}
 
                     checkbox = QCheckBox(relative_path)
                     checkbox.setProperty("creation_date", creation_date)
-                    checkbox.setChecked(new_prefs[creation_date]["selected"])
+                    checkbox.setChecked(new_context_settings[creation_date]["selected"])
                     checkbox.stateChanged.connect(self.file_toggled)
                     self.file_checkboxes_layout.addWidget(checkbox)
 
@@ -133,14 +133,14 @@ class ChatZimFilesDialog(QDialog):
         checkbox = self.sender()
         creation_date = checkbox.property("creation_date")
         new_state = checkbox.isChecked()
-        self.parent.prefs["pages"][creation_date]["selected"] = new_state
+        self.parent.context_settings["pages"][creation_date]["selected"] = new_state
 
     def load_notebook(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "Load Notebook", "", "ZIM Files (*.zim);;All Files (*)")
         if fileName:
             root = os.path.split(fileName)[0]
             self.root_path.setText(f"Notebook Path: {root}")
-            self.parent.prefs["root_path"] = root
+            self.parent.context_settings["root_path"] = root
             self.load_files()
             
 
@@ -148,12 +148,12 @@ class ChatZimFilesDialog(QDialog):
         fileName, _ = QFileDialog.getOpenFileName(self, "Load ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
         if fileName:
             with open(fileName, 'r') as file:
-                self.parent.prefs = json.load(file)
-                self.root_path.setText(f"Notebook Path: {self.parent.prefs['root_path']}")
+                self.parent.context_settings = json.load(file)
+                self.root_path.setText(f"Notebook Path: {self.parent.context_settings['root_path']}")
                 self.load_files()
 
     def save_settings(self):
         fileName, _ = QFileDialog.getSaveFileName(self, "Save ChatZim Settings", "", "JSON Files (*.json);;All Files (*)")
         if fileName:
             with open(fileName, 'w') as file:
-                json.dump(self.parent.prefs, file, indent=4, sort_keys=True)
+                json.dump(self.parent.context_settings, file, indent=4, sort_keys=True)
