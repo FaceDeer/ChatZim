@@ -133,7 +133,7 @@ class ChatWindow(QMainWindow):
         new_conversation_action.triggered.connect(self.new_conversation)
         toolbar.addAction(new_conversation_action)
 
-        back_conversation_action = QAction("Undo Response", self)
+        back_conversation_action = QAction("Undo Last Response", self)
         back_conversation_action.triggered.connect(self.roll_back)
         toolbar.addAction(back_conversation_action)
 

@@ -1,5 +1,5 @@
 import os
-from PyQt6.QtWidgets import QLineEdit, QVBoxLayout, QWidget, QPushButton, QDialog, QCheckBox, QVBoxLayout, QScrollArea, QLabel, QHBoxLayout, QFileDialog
+from PyQt6.QtWidgets import QLineEdit, QVBoxLayout, QWidget, QPushButton, QDialog, QCheckBox, QVBoxLayout, QScrollArea, QLabel, QHBoxLayout, QFileDialog, QSpacerItem, QSizePolicy
 import json
 
 import configparser
@@ -25,6 +25,12 @@ def get_creation_date_in_seconds(file_path):
                 creation_date_epoch = str(int(time.mktime(time.strptime(creation_date_str, "%Y-%m-%dT%H:%M:%S%z"))))
                 return creation_date_epoch
     return None
+
+def count_words_in_file(file_path):
+    with open(file_path, 'r', encoding="utf-8") as file:
+        lines = file.readlines()
+        lines = lines[3:]
+        return len(''.join(lines).split())
 
 def clearLayout(layout):
   while layout.count():
@@ -58,7 +64,6 @@ class ChatZimFilesDialog(QDialog):
         container_widget = QWidget()
         scroll_area.setWidget(container_widget)
         self.file_checkboxes_layout = QVBoxLayout(container_widget)
-
 
         bottom_layout = QHBoxLayout()
 
@@ -101,7 +106,8 @@ class ChatZimFilesDialog(QDialog):
         old_context_settings = self.parent.context_settings["pages"]
         new_context_settings = {}
         self.parent.context_settings["pages"] = new_context_settings
-        
+
+        checkboxes = []
         for root, dirs, files in os.walk(root_path):
             for file in files:
                 if file.endswith(".txt"):
@@ -123,11 +129,37 @@ class ChatZimFilesDialog(QDialog):
                         new_context_settings[creation_date] = {"relative_path":relative_path,
                                                     "selected": False}
 
+                    checkbox_container = QWidget()
+                    layout = QHBoxLayout(checkbox_container)
+                    layout.setContentsMargins(0, 0, 0, 0)
+                    layout.setSpacing(5)
+        
+                    # Checkbox for the file
                     checkbox = QCheckBox(relative_path)
                     checkbox.setProperty("creation_date", creation_date)
                     checkbox.setChecked(new_context_settings[creation_date]["selected"])
                     checkbox.stateChanged.connect(self.file_toggled)
-                    self.file_checkboxes_layout.addWidget(checkbox)
+
+                    # Spacer item to push the label to the right
+                    spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+         
+                    # Label for the word count
+                    word_count_label = QLabel(f"{count_words_in_file(file_path)} words")
+        
+                    # Add the checkbox and word count label to the layout
+                    layout.addWidget(checkbox)
+                    layout.addItem(spacer)
+                    layout.addWidget(word_count_label)
+
+                    checkboxes.append(checkbox_container)
+
+        #Sort the files by name
+        checkboxes.sort(key=lambda cb:cb.layout().itemAt(0).widget().text())
+        for checkbox_container in checkboxes:
+            self.file_checkboxes_layout.addWidget(checkbox_container)
+
+        #Add a spacer at the bottom to push the contents to the top.
+        self.file_checkboxes_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
     def file_toggled(self):
         checkbox = self.sender()
