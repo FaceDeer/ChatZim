@@ -1,7 +1,8 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog, QDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog, QDialog, QMenu, QToolButton
 from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt
 import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
@@ -122,21 +123,35 @@ class ChatWindow(QMainWindow):
         self.addToolBar(toolbar)
 
         # DocumentSets action
-        docsets_action = QAction("Select Pages", self)
-        docsets_action.triggered.connect(self.open_docsets_dialog)
-        toolbar.addAction(docsets_action)
+        select_pages_action = QAction("Select Pages", self)
+        select_pages_action.triggered.connect(self.open_docsets_dialog)
+        toolbar.addAction(select_pages_action)
 
-        save_conversation_action = QAction("Save Conversation", self)
+        update_context_action = QAction("Update Context", self)
+        update_context_action.triggered.connect(self.update_documents)
+        toolbar.addAction(update_context_action)
+
+        conversation_menu = QMenu("Conversation", self)
+
+        save_conversation_action = QAction("Save", self)
         save_conversation_action.triggered.connect(self.save_conversation)
-        toolbar.addAction(save_conversation_action)
+        conversation_menu.addAction(save_conversation_action)
         
-        load_conversation_action = QAction("Load Conversation", self)
+        load_conversation_action = QAction("Load", self)
         load_conversation_action.triggered.connect(self.load_conversation)
-        toolbar.addAction(load_conversation_action)
+        conversation_menu.addAction(load_conversation_action)
 
-        new_conversation_action = QAction("New Conversation", self)
+        new_conversation_action = QAction("New", self)
         new_conversation_action.triggered.connect(self.new_conversation)
-        toolbar.addAction(new_conversation_action)
+        conversation_menu.addAction(new_conversation_action)
+
+        # Create a tool button and set the menu
+        conversation_tool_button = QToolButton()
+        conversation_tool_button.setText("Conversation")
+        conversation_tool_button.setMenu(conversation_menu)
+        conversation_tool_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        conversation_tool_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        toolbar.addWidget(conversation_tool_button) 
 
         back_conversation_action = QAction("Undo Last Response", self)
         back_conversation_action.triggered.connect(self.roll_back)
