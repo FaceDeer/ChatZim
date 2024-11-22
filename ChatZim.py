@@ -183,6 +183,9 @@ class ChatWindow(QMainWindow):
 
     def add_message(self, message):
         self.messages.append(message)
+        self.add_message_to_chat_display(message)
+
+    def add_message_to_chat_display(self, message):
         current_role = role_info[message["role"]]
         content = message["content"].replace("\n", "<br>")
         formatted_message = f'<b><span style="color:{current_role["color"]};">{current_role["name"]}:</span></b> {content}<br>'
@@ -268,13 +271,13 @@ class ChatWindow(QMainWindow):
         self.messages = [get_system_message(self.context_settings, self.config)]
 
     def roll_back(self):
-        if len(self.messages) > 1:
+        if len(self.messages) >= 3:
             self.messages.pop() #delete last response
             user_message = self.messages.pop()
             self.text_input.setText(user_message["content"])
             self.chat_display.clear()
             for message in self.messages[1:]:
-                self.add_message(message)
+                self.add_message_to_chat_display(message)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
