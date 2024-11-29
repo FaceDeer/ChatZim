@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QDialog, QVBoxLayout, QFormLayout, QLineEdit, QTextEdit, QPushButton, QMessageBox
+    QApplication, QDialog, QVBoxLayout, QFormLayout, QLineEdit, QTextEdit, QPushButton, QMessageBox, QLabel, QFileDialog
 )
 from PyQt6.QtGui import QIntValidator, QRegularExpressionValidator
 from PyQt6.QtCore import QRegularExpression
@@ -39,6 +39,14 @@ class ChatZimConfigDialog(QDialog):
         self.system_prompt = QTextEdit()
         form_layout.addRow("System Prompt:", self.system_prompt)
 
+        # Add label and button for default page set
+        self.default_page_set_label = QLabel()
+        self.default_page_set_button = QPushButton('Select Default Page Set')
+        self.default_page_set_button.clicked.connect(self.select_default_page_set)
+
+        form_layout.addRow('Default Page Set:', self.default_page_set_label)
+        form_layout.addRow('', self.default_page_set_button)
+
         layout.addLayout(form_layout)
 
         self.save_button = QPushButton("Save")
@@ -53,6 +61,13 @@ class ChatZimConfigDialog(QDialog):
 
         self.load_config()
 
+    def select_default_page_set(self):
+        options = QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.DontResolveSymlinks
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Select Default Page Set', '', 'Page Files (*.pages);;All Files (*)', options=options)
+        file_name = file_name or ''        
+        self.default_page_set_label.setText(file_name)
+        self.config['default_pages'] = file_name
+
     def load_config(self):
         self.response_limit.setText(str(self.config.get("response_limit", "")))
         self.api_url.setText(self.config.get("api_url", ""))
@@ -61,6 +76,8 @@ class ChatZimConfigDialog(QDialog):
         self.project_id.setText(self.config.get("project_id", ""))
         self.model.setText(self.config.get("model", ""))
         self.system_prompt.setPlainText(self.config.get("system_prompt", ""))
+        self.default_page_set_label.setText(self.config.get("default_pages", ""))
+        #No need to do default_pages, it's already set when the file dialogue selects it
 
     def save_config(self):
         try:

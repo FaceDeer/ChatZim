@@ -95,8 +95,6 @@ class ChatWindow(QMainWindow):
         self.setWindowTitle("Chat with Zim")
         self.resize(800, 600)
 
-        self.context_settings = {"pages":{}, "root_path":None, "name":None}
-
         try:
             with open(config_filename) as file:
                 self.config = json.load(file)
@@ -112,6 +110,12 @@ class ChatWindow(QMainWindow):
                     " You will be answering questions regarding"
                     " the following source material:")
             }
+
+        try:
+            with open(self.config.get("default_pages")) as default_pages:
+                self.context_settings = json.load(default_pages)
+        except:
+            self.context_settings = {"pages":{}, "root_path":None, "name":None}
 
         self.messages = [get_system_message(self.context_settings, self.config)]
 
