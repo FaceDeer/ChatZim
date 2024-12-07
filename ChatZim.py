@@ -50,11 +50,14 @@ def get_system_message(context_settings, config):
 
     file_path_list.sort()
     context_list = []
-    for file_path in file_path_list:           
-        with open(file_path, 'r', encoding="utf-8") as file:
-                lines = file.readlines()
-                lines = lines[3:]
-                context_list.append(''.join(lines))
+    for file_path in file_path_list:
+        try:
+            with open(file_path, 'r', encoding="utf-8") as file:
+                    lines = file.readlines()
+                    lines = lines[3:]
+                    context_list.append(''.join(lines))
+        except:
+            print(f"Unable to read file {file_path}")
 
     message = {
         "role": "system",
@@ -134,6 +137,10 @@ class ChatWindow(QMainWindow):
         update_context_action = QAction("Update Context", self)
         update_context_action.triggered.connect(self.update_documents)
         toolbar.addAction(update_context_action)
+
+        export_context_action = QAction("Export Context", self)
+        export_context_action.triggered.connect(self.export_context)
+        toolbar.addAction(export_context_action)
 
         conversation_menu = QMenu("Conversation", self)
 
@@ -245,6 +252,13 @@ class ChatWindow(QMainWindow):
         self.messages[0] = get_system_message(self.context_settings, self.config)
         words = word_count(self.messages[0]["content"])
         self.header_label.setText(f'{self.context_settings["name"]}: {enabled}/{total} pages selected, {words} words in context')
+
+    def export_context(self):
+        system_message = get_system_message(self.context_settings, self.config)
+        fileName, _ = QFileDialog.getSaveFileName(self, "Export Context", "", "TXT Files (*.txt);;All Files (*)")
+        if fileName:
+            with open(fileName, 'w', encoding="utf-8") as file:
+                file.write(self.messages[0]["content"])
 
     def open_config_dialog(self):
         self.config_dialog = ChatZimConfigDialog(self)
