@@ -1,13 +1,13 @@
 import sys
 import os
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLineEdit, QVBoxLayout, QWidget, QToolBar, QPushButton, QLabel, QScrollArea, QFileDialog, QDialog, QMenu, QToolButton
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QTextCursor
 from PyQt6.QtCore import Qt
 import json
 
 from ChatZimFilesDialog import ChatZimFilesDialog
 from ChatZimConfigDialog import ChatZimConfigDialog
-from OpenAIInterface import queryLLM
+from OpenAIInterface import queryLLMStreamed
 
 import sys
 import traceback
@@ -69,10 +69,19 @@ def get_system_message(context_settings, config):
 def word_count(context):
     return len(context.split())
 
+# Function to remove the last character from a QTextEdit window if it's a newline
+def remove_last_character_if_newline(text_edit):
+    cursor = text_edit.textCursor()
+    cursor.movePosition(QTextCursor.MoveOperation.End)
+    cursor.movePosition(QTextCursor.MoveOperation.PreviousCharacter, QTextCursor.MoveMode.KeepAnchor)
+#    if cursor.selectedText() == '\n':
+    cursor.removeSelectedText()
+    text_edit.setTextCursor(cursor)
 
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
-class Worker(QObject):
-    finished = pyqtSignal(dict)
+class WorkerStreamed(QObject):
+    new_token = pyqtSignal(dict)
+    finished = pyqtSignal()
     error = pyqtSignal(str)
 
     def __init__(self, messages, config):
@@ -82,14 +91,13 @@ class Worker(QObject):
 
     def run(self):
         try:
-            llm_response = queryLLM(self.messages, self.config)
-            if llm_response:
-                self.finished.emit(llm_response)
-            else:
-                self.error.emit("Error getting LLM response")
+            for llm_response in queryLLMStreamed(self.messages, self.config):
+                if llm_response is None:
+                    break
+                self.new_token.emit(llm_response)
+            self.finished.emit()
         except Exception as e:
             self.error.emit(str(e))
-
 
 class ChatWindow(QMainWindow):
     def __init__(self):
@@ -202,27 +210,41 @@ class ChatWindow(QMainWindow):
         formatted_message = f'<b><span style="color:{current_role["color"]};">{current_role["name"]}:</span></b> {content}<br>'
         self.chat_display.append(formatted_message)
 
+    def append_token(self, token):
+        self.messages[-1]["content"] = self.messages[-1]["content"] + token
+        cursor = self.chat_display.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(token)
+        self.chat_display.setTextCursor(cursor)
+
     def handle_return_pressed(self):
         user_text = self.text_input.text()
         self.text_input.clear()
         
         user_message = {"role": "user", "content": user_text}
         self.add_message(user_message)
+        assistant_message = {"role": "assistant", "content": ""}
+        self.add_message(assistant_message)
+        remove_last_character_if_newline(self.chat_display)
 
         self.text_input.setDisabled(True)  # Disable the input field
         self.text_input.setText("(Working...)")
 
         self.thread = QThread()
-        self.worker = Worker(self.messages, self.config)
+        self.worker = WorkerStreamed(self.messages, self.config)
         self.worker.moveToThread(self.thread)
-        
-        self.worker.finished.connect(self.on_llm_response)
+
+        self.worker.new_token.connect(self.on_llm_response)
+        self.worker.finished.connect(self.on_llm_response_complete)
         self.worker.error.connect(self.on_llm_error)
         self.thread.started.connect(self.worker.run)
         self.thread.start()
 
     def on_llm_response(self, response):
-        self.add_message(response)
+        self.append_token(response["choices"][0]["delta"]["content"])
+
+    def on_llm_response_complete(self):
+        self.chat_display.append("") # add a line break after LLM response
         self.text_input.setDisabled(False)  # Re-enable the input field
         self.text_input.setText("")
         self.thread.quit()
