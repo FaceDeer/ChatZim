@@ -69,12 +69,13 @@ def get_system_message(context_settings, config):
 def word_count(context):
     return len(context.split())
 
-# Function to remove the last character from a QTextEdit window if it's a newline
-def remove_last_character_if_newline(text_edit):
+# Function to remove the last character from a QTextEdit window
+# TODO: improve how the chat window is managed so that hacky things like this
+# aren't needed.
+def remove_last_character(text_edit):
     cursor = text_edit.textCursor()
     cursor.movePosition(QTextCursor.MoveOperation.End)
     cursor.movePosition(QTextCursor.MoveOperation.PreviousCharacter, QTextCursor.MoveMode.KeepAnchor)
-#    if cursor.selectedText() == '\n':
     cursor.removeSelectedText()
     text_edit.setTextCursor(cursor)
 
@@ -225,7 +226,7 @@ class ChatWindow(QMainWindow):
         self.add_message(user_message)
         assistant_message = {"role": "assistant", "content": ""}
         self.add_message(assistant_message)
-        remove_last_character_if_newline(self.chat_display)
+        remove_last_character(self.chat_display) # gets rid of the line return that add_message adds
 
         self.text_input.setDisabled(True)  # Disable the input field
         self.text_input.setText("(Working...)")
