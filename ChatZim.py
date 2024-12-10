@@ -229,7 +229,7 @@ class ChatWindow(QMainWindow):
         remove_last_character(self.chat_display) # gets rid of the line return that add_message adds
 
         self.text_input.setDisabled(True)  # Disable the input field
-        self.text_input.setText("(Working...)")
+        self.text_input.setText("(Processing prompt...)")
 
         self.thread = QThread()
         self.worker = WorkerStreamed(self.messages, self.config)
@@ -243,6 +243,8 @@ class ChatWindow(QMainWindow):
 
     def on_llm_response(self, response):
         self.append_token(response["choices"][0]["delta"]["content"])
+        if self.text_input.text() != "(Responding...)":
+            self.text_input.setText("(Responding...)")
 
     def on_llm_response_complete(self):
         self.chat_display.append("") # add a line break after LLM response
